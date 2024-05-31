@@ -1,4 +1,3 @@
-// header component for bitsave algo
 'use client'
 import LiskConnect from "./auth"
 

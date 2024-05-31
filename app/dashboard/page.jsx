@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -9,22 +9,13 @@ import { Calendar, utils } from "react-modern-calendar-datepicker";
 import { ethers } from 'ethers';
 import BitsaveABI from '../../artifacts/contracts/Bitsave.sol/Bitsave.json'; // Ensure this path is correct
 
-export default function Dashboard({ router }) {
-  const [selectedDayRange, setSelectedDayRange] = useState({
-    from: null,
-    to: null
-  });
-
+export default function Dashboard() {
+  const [selectedDayRange, setSelectedDayRange] = useState({ from: null, to: null });
   const [selectedPenalty, setSelectedPenalty] = useState(1);
   const [savingsName, setSavingsName] = useState('');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('ethereum');
 
-  const handlePenaltyClick = (penaltyValue) => {
-    setSelectedPenalty(penaltyValue);
-  };
-
-  // Function to handle creation of savings plan
   const handleCreateSavings = async () => {
     if (!window.ethereum) {
       console.error('MetaMask is not installed!');
@@ -33,23 +24,34 @@ export default function Dashboard({ router }) {
 
     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
-    const provider = new ethers.BrowserProvider(window.ethereum);
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
 
     const contractAddress = '0x01f0443DaEC78fbaBb2D0927fEdFf5C20a4A39b5';
-    const contract = new ethers.Contract(contractAddress, BitsaveABI.abi, signer); // Use BitsaveABI.abi
+    const contract = new ethers.Contract(contractAddress, BitsaveABI.abi, signer);
 
     try {
       const maturityTime = selectedDayRange.to ? Math.floor(new Date(selectedDayRange.to.year, selectedDayRange.to.month - 1, selectedDayRange.to.day).getTime() / 1000) : 0;
       const amountInWei = ethers.utils.parseUnits(amount || "0", "ether");
+
+      console.log('Creating savings with parameters:', {
+        savingsName,
+        maturityTime,
+        selectedPenalty,
+        currency,
+        amountInWei: amountInWei.toString()
+      });
+
+      const gasLimit = ethers.BigNumber.from('3000000');
 
       const tx = await contract.createSaving(
         savingsName,
         maturityTime,
         selectedPenalty,
         false,
-        currency, // Token address to save (adjust this as needed)
-        amountInWei
+        currency,
+        amountInWei,
+        { gasLimit }
       );
 
       await tx.wait();
@@ -57,6 +59,17 @@ export default function Dashboard({ router }) {
       console.log('Savings created successfully!');
     } catch (error) {
       console.error('Error creating savings:', error);
+
+      if (error.code === ethers.errors.CALL_EXCEPTION) {
+        console.error('CALL_EXCEPTION:', error);
+        if (error.transaction && error.transaction.data) {
+          console.error('Transaction data:', error.transaction.data);
+        }
+      }
+
+      if (error.error && error.error.data) {
+        console.error('Revert reason:', error.error.data);
+      }
     }
   };
   
@@ -304,12 +317,12 @@ export default function Dashboard({ router }) {
                     <div className={bit.dot}></div>
                     <h4 className={bit.h4Class}>Preview</h4>
                   </div>
-                  <p>This ought to show the preview of your savings but i am just testing</p>
+                  <p>This ought to show the preview of your savings but I am just testing</p>
                 </div>
               </div>
               <div className={bit.button_row}>
                 <button className={bit.back_button} id="lastModalButton">Back</button>
-                <button className={bit.next_button} id="create_modal">Create</button>
+                <button className={bit.next_button} id="create_modal" onClick={handleCreateSavings}>Create</button>
               </div>
             </div>
           </div>
